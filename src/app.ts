@@ -17,7 +17,8 @@ export const createApp = () => {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: config.CORS_ORIGIN }));
+  // Location is not readable from browser code unless it is exposed
+  app.use(cors({ origin: config.CORS_ORIGIN, exposedHeaders: ['Location'] }));
   app.use(express.json({ limit: '256kb' }));
 
   app.get('/health', (_req, res) => {
@@ -25,6 +26,9 @@ export const createApp = () => {
     res.status(dbUp ? 200 : 503).json({ status: dbUp ? 'ok' : 'unavailable' });
   });
 
+  app.get('/', (_req, res) => {
+    res.redirect('/docs');
+  });
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
   app.use('/api/v1/posts', publicPostsRouter);

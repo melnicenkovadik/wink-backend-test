@@ -52,6 +52,11 @@ const requireJsonBody: RequestHandler = (req, _res, next) => {
 export const cmsPostsRouter = Router();
 
 cmsPostsRouter.use(requireCmsToken);
+// drafts should not end up in a browser or proxy cache
+cmsPostsRouter.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 cmsPostsRouter.post('/', requireJsonBody, async (req, res) => {
   const post = await createPost(createPostSchema.parse(req.body));

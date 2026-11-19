@@ -17,6 +17,20 @@ describe('app', () => {
     expect(res.text).toContain('swagger-ui');
   });
 
+  it('redirects the root to the docs', async () => {
+    const res = await request(app).get('/').expect(302);
+    expect(res.headers.location).toBe('/docs');
+  });
+
+  it('does not let CMS responses be cached and exposes Location to browsers', async () => {
+    const res = await request(app).get('/api/v1/cms/posts').set(AUTH).expect(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['access-control-expose-headers']).toBe('Location');
+
+    const blog = await request(app).get('/api/v1/posts').expect(200);
+    expect(blog.headers['cache-control']).toBeUndefined();
+  });
+
   it('answers unknown routes with a JSON 404', async () => {
     const res = await request(app).get('/api/v1/nope').expect(404);
     expect(res.body.error.code).toBe('NOT_FOUND');

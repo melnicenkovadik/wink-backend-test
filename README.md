@@ -23,6 +23,13 @@ npm ci
 npm run dev
 ```
 
+To get a few demo posts (3 published, 2 drafts; it clears the collection first):
+
+```bash
+npm run seed                                # local
+docker compose exec api node dist/seed.js   # Docker
+```
+
 ## Token
 
 There is no authentication system, as the task says. CMS calls need this hardcoded token:
@@ -126,7 +133,8 @@ Some things are not defined in the task, so here is what I went with.
 - Delete is a real delete and works for drafts and published posts.
 - The body is stored as is. The API doesn't sanitize it, escaping is up to whoever renders it.
 - CORS is open by default (`CORS_ORIGIN=*`), I assume the clients are browser apps on other
-  domains.
+  domains. `Location` is exposed so the CMS can read it after a create.
+- CMS responses have `Cache-Control: no-store`, so drafts are not cached anywhere.
 
 ## Project structure
 
@@ -135,6 +143,7 @@ src/
   server.ts      connects to MongoDB and starts the HTTP server
   app.ts         builds the Express app (tests use it without opening a port)
   config.ts      environment variables
+  seed.ts        demo posts
   errors.ts      application errors
   middleware/    token check, 404 and error handler
   posts/         routes -> service -> model, plus validation schemas and hashtag rules
