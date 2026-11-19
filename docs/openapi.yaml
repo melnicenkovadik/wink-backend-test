@@ -9,7 +9,7 @@ info:
     - CMS endpoints (`/api/v1/cms/posts`) need the header
       `Authorization: Bearer wink-cms-hardcoded-token`.
 servers:
-  - url: http://localhost:3000
+  - url: /
 tags:
   - name: Blog
     description: Public, read-only, published posts only

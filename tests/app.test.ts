@@ -8,6 +8,11 @@ describe('app', () => {
     expect(res.body).toEqual({ status: 'ok' });
   });
 
+  it('serves the API docs', async () => {
+    const res = await request(app).get('/docs/').expect(200);
+    expect(res.text).toContain('swagger-ui');
+  });
+
   it('answers unknown routes with a JSON 404', async () => {
     const res = await request(app).get('/api/v1/nope').expect(404);
     expect(res.body.error.code).toBe('NOT_FOUND');

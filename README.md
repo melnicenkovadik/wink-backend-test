@@ -11,7 +11,8 @@ With Docker only:
 docker compose up --build
 ```
 
-The API is on http://localhost:3000.
+The API is on http://localhost:3000 and the interactive docs (Swagger UI) are on
+http://localhost:3000/docs.
 
 Or locally, with Node 24:
 
@@ -49,7 +50,8 @@ Blog calls need no token. The token can be changed with the `CMS_API_TOKEN` vari
 Lists take `page` (default 1) and `limit` (default 20, max 100) and return
 `{ "data": [...], "meta": { "page", "limit", "total", "totalPages" } }`.
 
-The full contract is in [docs/openapi.yaml](docs/openapi.yaml).
+The full contract is in [docs/openapi.yaml](docs/openapi.yaml), served as Swagger UI on `/docs`.
+Press **Authorize** there and paste the token to call the CMS endpoints.
 
 Errors always look the same:
 
