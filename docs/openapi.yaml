@@ -1,0 +1,355 @@
+openapi: 3.1.0
+info:
+  title: WiNK Blog API
+  version: 1.0.0
+  description: |
+    REST API for two clients: a public blog and a content management system (CMS).
+
+    - Blog endpoints (`/api/v1/posts`) need no token and only ever return published posts.
+    - CMS endpoints (`/api/v1/cms/posts`) need the header
+      `Authorization: Bearer wink-cms-hardcoded-token`.
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Blog
+    description: Public, read-only, published posts only
+  - name: CMS
+    description: Requires the bearer token
+paths:
+  /api/v1/posts:
+    get:
+      tags: [Blog]
+      summary: List published posts
+      description: Newest publication first. Optionally filtered by hashtags.
+      parameters:
+        - name: hashtags
+          in: query
+          description: |
+            Comma-separated hashtags. A post matches if it has **any** of them.
+            Matching ignores case and a leading `#` (send it URL-encoded as `%23`),
+            e.g. `?hashtags=%23NodeJS,express`.
+          schema:
+            type: string
+          example: node,express
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/PostList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/posts/{id}:
+    get:
+      tags: [Blog]
+      summary: Get a published post
+      description: A draft answers 404, the same as a post that does not exist.
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/cms/posts:
+    post:
+      tags: [CMS]
+      summary: Create a post
+      description: The author is always set to Brian Fox by the server.
+      security:
+        - cmsToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePost'
+            example:
+              title: Hello WiNK
+              body: First post
+              hashtags: ['#NodeJS', 'express']
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: URL of the new post in the CMS API
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+    get:
+      tags: [CMS]
+      summary: List posts of any status
+      description: Newest created first.
+      security:
+        - cmsToken: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/Status'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/PostList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/cms/posts/{id}:
+    get:
+      tags: [CMS]
+      summary: Get a post of any status
+      security:
+        - cmsToken: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [CMS]
+      summary: Delete a post
+      security:
+        - cmsToken: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Deleted, no body
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/cms/posts/{id}/publish:
+    post:
+      tags: [CMS]
+      summary: Publish a post
+      description: |
+        Moves a draft to `published` and sets `publishedAt`.
+        Publishing an already published post returns it unchanged, so the call is safe to retry.
+      security:
+        - cmsToken: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: The API is up and connected to MongoDB
+        '503':
+          description: MongoDB is not reachable
+components:
+  securitySchemes:
+    cmsToken:
+      type: http
+      scheme: bearer
+      description: 'Hardcoded demo token: `wink-cms-hardcoded-token`'
+  parameters:
+    PostId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+      example: 673c9f0e5b1d4a2f9c8e7a11
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    Status:
+      type: string
+      enum: [draft, published]
+    CreatePost:
+      type: object
+      additionalProperties: false
+      required: [title, body]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        hashtags:
+          type: array
+          maxItems: 20
+          default: []
+          description: Stored lowercased, without a leading `#`, without duplicates.
+          items:
+            type: string
+            description: 1-50 letters, digits or underscores
+        status:
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          default: draft
+    Post:
+      type: object
+      required: [id, title, body, hashtags, status, author, createdAt, updatedAt, publishedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/Status'
+        author:
+          type: string
+          const: Brian Fox
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+    PostEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Post'
+    PostListEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        meta:
+          type: object
+          required: [page, limit, total, totalPages]
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - INVALID_JSON
+                - UNAUTHORIZED
+                - NOT_FOUND
+                - PAYLOAD_TOO_LARGE
+                - INTERNAL_ERROR
+            message:
+              type: string
+            details:
+              type: array
+              description: Present for VALIDATION_ERROR
+              items:
+                type: object
+                required: [path, message]
+                properties:
+                  path:
+                    type: string
+                  message:
+                    type: string
+  responses:
+    Post:
+      description: A post
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PostEnvelope'
+    PostList:
+      description: A page of posts
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PostListEnvelope'
+    ValidationError:
+      description: Invalid body, query or id (`VALIDATION_ERROR`), or malformed JSON (`INVALID_JSON`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or wrong token
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+            const: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: No such post
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PayloadTooLarge:
+      description: Request body is larger than 256 KB
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
