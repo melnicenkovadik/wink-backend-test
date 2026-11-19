@@ -41,7 +41,7 @@ publicPostsRouter.get('/:id', async (req, res) => {
 });
 
 const requireJsonBody: RequestHandler = (req, _res, next) => {
-  // an empty request is left to validation, which answers 400 with the missing fields
+  // empty body is fine here, zod will answer 400
   const hasBody = Number(req.get('content-length')) > 0 || req.get('transfer-encoding');
   if (hasBody && !req.is('application/json')) {
     throw new AppError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Request body must be application/json');

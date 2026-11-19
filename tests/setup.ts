@@ -3,7 +3,6 @@ import mongoose from 'mongoose';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { Post } from '../src/posts/post.model.js';
 
-// every test file gets its own mongod, so files can run in parallel without sharing data
 let mongod: MongoMemoryServer;
 
 beforeAll(async () => {

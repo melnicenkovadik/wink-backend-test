@@ -21,7 +21,7 @@ export const postParamsSchema = z.object({
   id: z.string().regex(/^[0-9a-f]{24}$/i, 'Invalid post id'),
 });
 
-// max() runs on the raw value and min() on the trimmed one, matching the OpenAPI schema
+// max is checked before trim, same as in openapi.yaml
 const title = z.string().max(200).trim().min(1);
 const body = z.string().max(50_000).trim().min(1);
 
@@ -32,7 +32,6 @@ export const createPostSchema = z.strictObject({
   status: z.enum(POST_STATUSES).default('draft'),
 });
 
-// status is not editable here: publishing has its own endpoint
 export const updatePostSchema = z
   .strictObject({
     title: title.optional(),

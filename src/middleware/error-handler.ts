@@ -12,7 +12,7 @@ const sendError = (
   res.status(status).json({ error: { code, message, details } });
 };
 
-// express.json() reports its failures through a `type` field on the error
+// body-parser errors come with a `type`
 const BODY_PARSER_ERRORS: Record<string, [status: number, code: string, message: string]> = {
   'entity.parse.failed': [400, 'INVALID_JSON', 'Request body is not valid JSON'],
   'request.aborted': [400, 'BAD_REQUEST', 'Request body was not received completely'],
@@ -27,7 +27,7 @@ const bodyParserError = (err: unknown) =>
     ? BODY_PARSER_ERRORS[err.type]
     : undefined;
 
-// Express and its parsers mark request problems (broken gzip, malformed URL) with a 4xx status
+// broken gzip, bad url encoding etc.
 const isClientError = (err: unknown) =>
   typeof err === 'object' &&
   err !== null &&

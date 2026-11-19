@@ -104,33 +104,29 @@ curl -s -X POST $API/cms/posts -H 'Content-Type: application/json' -d '{}'
 
 ## Decisions
 
-The task leaves some things open. This is what I chose and why.
+Some things are not defined in the task, so here is what I went with.
 
-- **Two routers, one per client.** The blog router only reads and always filters by
-  `status: published`, so it cannot return a draft: not in the list, not in the total count, not
-  by id (a draft answers 404, so its existence is not revealed). The token is checked once for the
-  whole CMS router.
-- **Create.** The server always sets the author to Brian Fox; sending `author` (or any unknown
-  field) is a 400. A missing `status` means `draft`, and `published` can be sent to publish right
-  away. Missing `hashtags` means `[]`; if sent, it must be an array of strings.
-- **Edit is `PATCH /:id`** and only touches `title`, `body` and `hashtags`. The task does not
-  list it, but a CMS where a typo cannot be fixed is hard to use. It never changes the status.
-- **Publish is `POST /:id/publish`.** It is one atomic MongoDB update with the condition
-  `status: draft`. Publishing an already published post returns it unchanged, so a retry is safe,
-  and two requests at the same time end up with one `publishedAt`.
-- **Hashtags** are stored in one form: trimmed, without a leading `#`, lowercased, no duplicates.
-  The filter normalizes its input the same way, so `#NodeJS` and `nodejs` are the same tag.
-  Allowed characters are letters, digits and `_`.
-- **Filtering by several hashtags** returns posts that have **any** of them
-  (`?hashtags=node,express`).
-- **The blog sorts by `publishedAt`**, not by creation date, with `_id` as a tie-breaker so pages
-  stay stable. Indexes cover the feed, the hashtag filter and the CMS list.
-- **Delete** removes the post for real and works for any status.
-- **The post body is stored as plain text.** The API returns JSON and does not interpret it.
-  Escaping it when rendering HTML is the client's job.
-- **CORS** is open by default (`CORS_ORIGIN=*`) because the clients are likely browser apps on
-  other origins. It only lets a browser read the response. Access to the CMS is decided by the
-  token.
+- The blog and the CMS have separate routers. The blog one only reads and always filters by
+  `status: published`, so a draft never shows up there: not in the list, not in `total`, not by id
+  (it is a 404, same as a post that does not exist). The token is checked once for the whole CMS
+  router.
+- The author is always Brian Fox and is set on the server. Sending `author` or any other unknown
+  field is a 400. No `status` means `draft`, but you can send `published` to publish right away.
+  No `hashtags` means `[]`.
+- Publishing is `POST /:id/publish`. It is a single MongoDB update with a `status: draft`
+  condition. If the post is already published you just get it back, with the same `publishedAt`,
+  so the call can be repeated safely.
+- Editing is `PATCH /:id` for `title`, `body` and `hashtags` only. It is not in the task, but I
+  added it because a CMS where you can't fix a typo is not very useful.
+- Hashtags are saved trimmed, lowercased and without `#`, duplicates are dropped. The filter does
+  the same with its input, so `#NodeJS` and `nodejs` are one tag. Only letters, digits and `_`
+  are allowed.
+- With several hashtags (`?hashtags=node,express`) you get posts that have at least one of them.
+- The blog is sorted by `publishedAt` (then `_id`), not by creation date.
+- Delete is a real delete and works for drafts and published posts.
+- The body is stored as is. The API doesn't sanitize it, escaping is up to whoever renders it.
+- CORS is open by default (`CORS_ORIGIN=*`), I assume the clients are browser apps on other
+  domains.
 
 ## Project structure
 
@@ -146,8 +142,7 @@ tests/           HTTP tests against a real MongoDB
 docs/            OpenAPI spec
 ```
 
-Routes parse and validate the request. The service holds the rules (visibility, publishing,
-author). The model describes how a post is stored.
+Routes validate the request, the service has the logic, the model is the Mongoose schema.
 
 ## Tests
 
@@ -163,5 +158,5 @@ Other checks: `npm run lint`, `npm run typecheck`, `npm run build`.
 
 ## Next steps
 
-Things I left out because the task does not ask for them: unpublishing a post, real
-authentication with roles, rate limiting, structured logs, cursor pagination for large feeds, CI.
+Not done, since the task doesn't ask for it: unpublishing, real auth with roles, rate limiting,
+proper logging, cursor pagination, CI.

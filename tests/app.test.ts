@@ -3,7 +3,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { app, AUTH } from './helpers.js';
 
-// superagent would JSON-serialize a Buffer sent as application/json
+// otherwise superagent stringifies the buffer
 const sendAsIs = (body: Buffer) => body as unknown as string;
 
 describe('app', () => {

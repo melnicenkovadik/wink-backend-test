@@ -15,11 +15,8 @@ const postSchema = new Schema(
   { timestamps: true },
 );
 
-// public feed
 postSchema.index({ status: 1, publishedAt: -1, _id: -1 });
-// public feed filtered by hashtag
 postSchema.index({ hashtags: 1, status: 1, publishedAt: -1, _id: -1 });
-// CMS list
 postSchema.index({ createdAt: -1, _id: -1 });
 
 export type PostDocument = HydratedDocument<InferSchemaType<typeof postSchema>>;

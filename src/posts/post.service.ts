@@ -15,7 +15,6 @@ const findPage = async (
   sort: Record<string, SortOrder>,
   { page, limit }: { page: number; limit: number },
 ) => {
-  // the same filter goes to both queries, so `total` can never count posts the list hides
   const [posts, total] = await Promise.all([
     Post.find(filter)
       .sort(sort)
@@ -36,7 +35,7 @@ export const createPost = (input: CreatePostInput) =>
 export const listPublishedPosts = ({ hashtags, ...page }: PublicListQuery) => {
   const filter: PostFilter = { status: 'published' };
   if (hashtags.length > 0) filter.hashtags = { $in: hashtags };
-  // _id breaks ties between posts published at the same moment, so pages stay stable
+  // _id as a tie-breaker, otherwise pages can overlap
   return findPage(filter, { publishedAt: -1, _id: -1 }, page);
 };
 
@@ -49,7 +48,6 @@ export const getPost = async (id: string) => {
   return post;
 };
 
-// a draft answers 404 here, the same as a post that does not exist
 export const getPublishedPost = async (id: string) => {
   const post = await Post.findOne({ _id: id, status: 'published' });
   if (!post) throw notFound('Post not found');
@@ -63,14 +61,13 @@ export const updatePost = async (id: string, input: UpdatePostInput) => {
 };
 
 export const publishPost = async (id: string) => {
-  // One atomic update: of two concurrent requests only one matches `status: 'draft'`.
-  // Without returnDocument: 'after' Mongoose would return the document as it was before.
+  // only one of two parallel requests can match status: 'draft'
   const published = await Post.findOneAndUpdate(
     { _id: id, status: 'draft' },
     { $set: { status: 'published', publishedAt: new Date() } },
     { returnDocument: 'after' },
   );
-  // nothing matched: the post is already published (return it as is) or does not exist (404)
+  // already published or missing
   return published ?? getPost(id);
 };
 
