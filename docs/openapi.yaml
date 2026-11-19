@@ -248,13 +248,13 @@ components:
           minLength: 1
           maxLength: 200
           pattern: '\S'
-          description: Trimmed before saving; must contain a non-whitespace character.
+          description: Surrounding whitespace is removed before saving; must contain a non-whitespace character.
         body:
           type: string
           minLength: 1
           maxLength: 50000
           pattern: '\S'
-          description: Trimmed before saving; must contain a non-whitespace character.
+          description: Surrounding whitespace is removed before saving; must contain a non-whitespace character.
         hashtags:
           type: array
           maxItems: 20
@@ -277,13 +277,13 @@ components:
           minLength: 1
           maxLength: 200
           pattern: '\S'
-          description: Trimmed before saving; must contain a non-whitespace character.
+          description: Surrounding whitespace is removed before saving; must contain a non-whitespace character.
         body:
           type: string
           minLength: 1
           maxLength: 50000
           pattern: '\S'
-          description: Trimmed before saving; must contain a non-whitespace character.
+          description: Surrounding whitespace is removed before saving; must contain a non-whitespace character.
         hashtags:
           type: array
           maxItems: 20
@@ -389,7 +389,9 @@ components:
           schema:
             $ref: '#/components/schemas/PostListEnvelope'
     ValidationError:
-      description: Invalid body, query or id (`VALIDATION_ERROR`), or malformed JSON (`INVALID_JSON`)
+      description: |
+        Invalid body, query or id (`VALIDATION_ERROR`), malformed JSON (`INVALID_JSON`),
+        or a request that could not be read, e.g. a broken gzip body (`BAD_REQUEST`)
       content:
         application/json:
           schema:
@@ -418,7 +420,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     UnsupportedMediaType:
-      description: The request charset or content encoding is not supported
+      description: The body is not `application/json`, or its charset or content encoding is not supported
       content:
         application/json:
           schema:

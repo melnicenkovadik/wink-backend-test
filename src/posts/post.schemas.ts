@@ -21,8 +21,9 @@ export const postParamsSchema = z.object({
   id: z.string().regex(/^[0-9a-f]{24}$/i, 'Invalid post id'),
 });
 
-const title = z.string().trim().min(1).max(200);
-const body = z.string().trim().min(1).max(50_000);
+// max() runs on the raw value and min() on the trimmed one, matching the OpenAPI schema
+const title = z.string().max(200).trim().min(1);
+const body = z.string().max(50_000).trim().min(1);
 
 export const createPostSchema = z.strictObject({
   title,

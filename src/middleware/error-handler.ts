@@ -27,6 +27,15 @@ const bodyParserError = (err: unknown) =>
     ? BODY_PARSER_ERRORS[err.type]
     : undefined;
 
+// Express and its parsers mark request problems (broken gzip, malformed URL) with a 4xx status
+const isClientError = (err: unknown) =>
+  typeof err === 'object' &&
+  err !== null &&
+  'status' in err &&
+  typeof err.status === 'number' &&
+  err.status >= 400 &&
+  err.status < 500;
+
 export const notFoundHandler: RequestHandler = (req) => {
   throw notFound(`Route ${req.method} ${req.path} not found`);
 };
@@ -47,6 +56,10 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
 
   const parserError = bodyParserError(err);
   if (parserError) return sendError(res, ...parserError);
+
+  if (isClientError(err)) {
+    return sendError(res, 400, 'BAD_REQUEST', 'Request could not be read');
+  }
 
   console.error(err);
   sendError(res, 500, 'INTERNAL_ERROR', 'Something went wrong');

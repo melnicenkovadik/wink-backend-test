@@ -1,6 +1,10 @@
+import { gzipSync } from 'node:zlib';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { app, AUTH } from './helpers.js';
+
+// superagent would JSON-serialize a Buffer sent as application/json
+const sendAsIs = (body: Buffer) => body as unknown as string;
 
 describe('app', () => {
   it('reports health', async () => {
@@ -39,6 +43,33 @@ describe('app', () => {
       .send('{"title":"Hello","body":"First post"}')
       .expect(415);
     expect(res.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+  });
+
+  it('rejects a truncated gzip body with 400', async () => {
+    const gzipped = gzipSync('{"title":"Hello","body":"First post"}');
+    const res = await request(app)
+      .post('/api/v1/cms/posts')
+      .set(AUTH)
+      .set({ 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' })
+      .serialize(sendAsIs)
+      .send(gzipped.subarray(0, gzipped.length - 6))
+      .expect(400);
+    expect(res.body.error.code).toBe('BAD_REQUEST');
+  });
+
+  it('accepts a valid gzip body', async () => {
+    await request(app)
+      .post('/api/v1/cms/posts')
+      .set(AUTH)
+      .set({ 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' })
+      .serialize(sendAsIs)
+      .send(gzipSync('{"title":"Hello","body":"First post"}'))
+      .expect(201);
+  });
+
+  it('rejects a malformed URL with 400', async () => {
+    const res = await request(app).get('/api/v1/posts/%E0%A4%A').expect(400);
+    expect(res.body.error.code).toBe('BAD_REQUEST');
   });
 
   it('rejects a body over the size limit with 413', async () => {

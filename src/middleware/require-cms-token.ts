@@ -4,8 +4,8 @@ import { unauthorized } from '../errors.js';
 
 export const requireCmsToken: RequestHandler = (req, _res, next) => {
   // the scheme name is case-insensitive (RFC 9110), the token is compared exactly
-  const [scheme, token] = (req.get('authorization') ?? '').split(' ');
-  if (scheme?.toLowerCase() !== 'bearer' || token !== config.CMS_API_TOKEN) {
+  const token = /^Bearer +(\S+)$/i.exec(req.get('authorization') ?? '')?.[1];
+  if (token !== config.CMS_API_TOKEN) {
     throw unauthorized();
   }
   next();

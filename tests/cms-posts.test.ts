@@ -17,6 +17,13 @@ describe('CMS auth', () => {
     await request(app).get(CMS).set('Authorization', `bearer ${token}`).expect(200);
   });
 
+  it('reads the whole header: extra spaces are fine, extra words are not', async () => {
+    const token = AUTH.Authorization.replace('Bearer ', '');
+    await request(app).get(CMS).set('Authorization', `Bearer   ${token}`).expect(200);
+    await request(app).get(CMS).set('Authorization', `Bearer ${token} extra`).expect(401);
+    await request(app).get(CMS).set('Authorization', `Basic ${token}`).expect(401);
+  });
+
   it('compares the token itself exactly', async () => {
     const token = AUTH.Authorization.replace('Bearer ', '');
     const changedCase = token.replace('wink', 'Wink');
@@ -86,6 +93,33 @@ describe('create a post', () => {
     const res = await request(app).post(CMS).set(AUTH).send(payload).expect(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
     expect(res.body.error.details.length).toBeGreaterThan(0);
+  });
+
+  it('counts the length limit before trimming, as the OpenAPI schema does', async () => {
+    const padded = ` ${'a'.repeat(200)} `;
+    await request(app).post(CMS).set(AUTH).send({ title: padded, body: 'text' }).expect(400);
+    const post = await createPost({ title: 'a'.repeat(200) });
+    expect(post.title).toHaveLength(200);
+  });
+
+  it('rejects a body that is not JSON with 415', async () => {
+    const post = await createPost();
+    const json = '{"title":"Hello","body":"First post"}';
+
+    const created = await request(app)
+      .post(CMS)
+      .set(AUTH)
+      .set('Content-Type', 'text/plain')
+      .send(json)
+      .expect(415);
+    await request(app)
+      .patch(`${CMS}/${post.id}`)
+      .set(AUTH)
+      .set('Content-Type', 'text/plain')
+      .send(json)
+      .expect(415);
+
+    expect(created.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
   });
 
   it('rejects a request without a body', async () => {

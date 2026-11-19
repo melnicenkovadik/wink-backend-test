@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
+import { AppError } from '../errors.js';
 import { requireCmsToken } from '../middleware/require-cms-token.js';
 import { toPostResponse, type PostDocument } from './post.model.js';
 import {
@@ -39,11 +40,20 @@ publicPostsRouter.get('/:id', async (req, res) => {
   res.json({ data: toPostResponse(await getPublishedPost(id)) });
 });
 
+const requireJsonBody: RequestHandler = (req, _res, next) => {
+  // an empty request is left to validation, which answers 400 with the missing fields
+  const hasBody = Number(req.get('content-length')) > 0 || req.get('transfer-encoding');
+  if (hasBody && !req.is('application/json')) {
+    throw new AppError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Request body must be application/json');
+  }
+  next();
+};
+
 export const cmsPostsRouter = Router();
 
 cmsPostsRouter.use(requireCmsToken);
 
-cmsPostsRouter.post('/', async (req, res) => {
+cmsPostsRouter.post('/', requireJsonBody, async (req, res) => {
   const post = await createPost(createPostSchema.parse(req.body));
   res
     .status(201)
@@ -61,7 +71,7 @@ cmsPostsRouter.get('/:id', async (req, res) => {
   res.json({ data: toPostResponse(await getPost(id)) });
 });
 
-cmsPostsRouter.patch('/:id', async (req, res) => {
+cmsPostsRouter.patch('/:id', requireJsonBody, async (req, res) => {
   const { id } = postParamsSchema.parse(req.params);
   const post = await updatePost(id, updatePostSchema.parse(req.body));
   res.json({ data: toPostResponse(post) });
