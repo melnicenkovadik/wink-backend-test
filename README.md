@@ -3,6 +3,10 @@
 A REST API for two clients: a public blog and a content management system.
 Built with Express 5, MongoDB (Mongoose) and TypeScript.
 
+Live demo: https://wink-backend-test.vercel.app (opens the Swagger UI). It runs on Vercel with a
+free MongoDB Atlas cluster and has a few demo posts. The CMS token below works there too, so
+feel free to create and delete things.
+
 ## Run it
 
 With Docker only:
