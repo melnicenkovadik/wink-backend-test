@@ -173,6 +173,7 @@ src/
   errors.ts      application errors
   middleware/    token check, 404 and error handler
   posts/         routes -> service -> model, plus validation schemas and hashtag rules
+api/index.js     entry for the Vercel demo, not used anywhere else
 tests/           HTTP tests against a real MongoDB
 docs/            OpenAPI spec
 ```
