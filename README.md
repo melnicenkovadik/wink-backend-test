@@ -170,8 +170,9 @@ src/
   app.ts         builds the Express app (tests use it without opening a port)
   config.ts      environment variables
   seed.ts        demo posts
+  db.ts          MongoDB connection
   errors.ts      application errors
-  middleware/    token check, 404 and error handler
+  middleware/    token check, small request guards, 404 and error handler
   posts/         routes -> service -> model, plus validation schemas and hashtag rules
 api/index.js     entry for the Vercel demo, not used anywhere else
 tests/           HTTP tests against a real MongoDB

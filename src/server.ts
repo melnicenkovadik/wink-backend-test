@@ -1,10 +1,8 @@
-import mongoose from 'mongoose';
 import { createApp } from './app.js';
 import { config } from './config.js';
-import { Post } from './posts/post.model.js';
+import { connectDb, disconnectDb } from './db.js';
 
-await mongoose.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
-await Post.init();
+await connectDb();
 
 const server = createApp().listen(config.PORT, () => {
   console.log(`API listening on http://localhost:${config.PORT}`);
@@ -12,7 +10,7 @@ const server = createApp().listen(config.PORT, () => {
 
 const shutdown = () => {
   server.close(() => {
-    void mongoose.disconnect().then(() => process.exit(0));
+    void disconnectDb().then(() => process.exit(0));
   });
 };
 

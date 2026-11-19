@@ -1,6 +1,8 @@
 import type { ErrorRequestHandler, RequestHandler, Response } from 'express';
 import { ZodError } from 'zod';
-import { AppError, notFound, type ErrorDetail } from '../errors.js';
+import { AppError, notFound } from '../errors.js';
+
+type ErrorDetail = { path: string; message: string };
 
 const sendError = (
   res: Response,
@@ -50,9 +52,8 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
   }
 
   if (err instanceof AppError) {
-    if (err.status === 401) res.set('WWW-Authenticate', 'Bearer');
-    if (err.status === 503) res.set('Retry-After', '5');
-    return sendError(res, err.status, err.code, err.message, err.details);
+    res.set(err.headers);
+    return sendError(res, err.status, err.code, err.message);
   }
 
   const parserError = bodyParserError(err);

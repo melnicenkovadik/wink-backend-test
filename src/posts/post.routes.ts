@@ -1,5 +1,5 @@
-import { Router, type RequestHandler } from 'express';
-import { AppError } from '../errors.js';
+import { Router, type Request } from 'express';
+import { allowOnly, noStore, requireJsonBody } from '../middleware/guards.js';
 import { requireCmsToken } from '../middleware/require-cms-token.js';
 import { toPostResponse, type PostDocument } from './post.model.js';
 import {
@@ -29,19 +29,16 @@ const postListResponse = (
   meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
 });
 
-const methodNotAllowed =
-  (allow: string): RequestHandler =>
-  (_req, res) => {
-    res.set('Allow', allow);
-    throw new AppError(405, 'METHOD_NOT_ALLOWED', `Allowed methods: ${allow}`);
-  };
+const postResponse = (post: PostDocument) => ({ data: toPostResponse(post) });
+
+const postId = (req: Request) => postParamsSchema.parse(req.params).id;
 
 export const hashtagsRouter = Router();
 
 hashtagsRouter.get('/', async (_req, res) => {
   res.json({ data: await listPublishedHashtags() });
 });
-hashtagsRouter.all('/', methodNotAllowed('GET, HEAD'));
+hashtagsRouter.all('/', allowOnly('GET, HEAD'));
 
 export const publicPostsRouter = Router();
 
@@ -51,37 +48,19 @@ publicPostsRouter.get('/', async (req, res) => {
 });
 
 publicPostsRouter.get('/:id', async (req, res) => {
-  const { id } = postParamsSchema.parse(req.params);
-  res.json({ data: toPostResponse(await getPublishedPost(id)) });
+  res.json(postResponse(await getPublishedPost(postId(req))));
 });
 
-publicPostsRouter.all('/', methodNotAllowed('GET, HEAD'));
-publicPostsRouter.all('/:id', methodNotAllowed('GET, HEAD'));
-
-const requireJsonBody: RequestHandler = (req, _res, next) => {
-  // empty body is fine here, zod will answer 400
-  const hasBody = Number(req.get('content-length')) > 0 || req.get('transfer-encoding');
-  if (hasBody && !req.is('application/json')) {
-    throw new AppError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Request body must be application/json');
-  }
-  next();
-};
+publicPostsRouter.all('/', allowOnly('GET, HEAD'));
+publicPostsRouter.all('/:id', allowOnly('GET, HEAD'));
 
 export const cmsPostsRouter = Router();
 
-cmsPostsRouter.use(requireCmsToken);
-// drafts should not end up in a browser or proxy cache
-cmsPostsRouter.use((_req, res, next) => {
-  res.set('Cache-Control', 'no-store');
-  next();
-});
+cmsPostsRouter.use(requireCmsToken, noStore);
 
 cmsPostsRouter.post('/', requireJsonBody, async (req, res) => {
   const post = await createPost(createPostSchema.parse(req.body));
-  res
-    .status(201)
-    .location(`${req.baseUrl}/${post.id}`)
-    .json({ data: toPostResponse(post) });
+  res.status(201).location(`${req.baseUrl}/${post.id}`).json(postResponse(post));
 });
 
 cmsPostsRouter.get('/', async (req, res) => {
@@ -90,27 +69,23 @@ cmsPostsRouter.get('/', async (req, res) => {
 });
 
 cmsPostsRouter.get('/:id', async (req, res) => {
-  const { id } = postParamsSchema.parse(req.params);
-  res.json({ data: toPostResponse(await getPost(id)) });
+  res.json(postResponse(await getPost(postId(req))));
 });
 
 cmsPostsRouter.patch('/:id', requireJsonBody, async (req, res) => {
-  const { id } = postParamsSchema.parse(req.params);
-  const post = await updatePost(id, updatePostSchema.parse(req.body));
-  res.json({ data: toPostResponse(post) });
+  const post = await updatePost(postId(req), updatePostSchema.parse(req.body));
+  res.json(postResponse(post));
 });
 
 cmsPostsRouter.post('/:id/publish', async (req, res) => {
-  const { id } = postParamsSchema.parse(req.params);
-  res.json({ data: toPostResponse(await publishPost(id)) });
+  res.json(postResponse(await publishPost(postId(req))));
 });
 
 cmsPostsRouter.delete('/:id', async (req, res) => {
-  const { id } = postParamsSchema.parse(req.params);
-  await deletePost(id);
+  await deletePost(postId(req));
   res.status(204).end();
 });
 
-cmsPostsRouter.all('/', methodNotAllowed('GET, HEAD, POST'));
-cmsPostsRouter.all('/:id', methodNotAllowed('GET, HEAD, PATCH, DELETE'));
-cmsPostsRouter.all('/:id/publish', methodNotAllowed('POST'));
+cmsPostsRouter.all('/', allowOnly('GET, HEAD, POST'));
+cmsPostsRouter.all('/:id', allowOnly('GET, HEAD, PATCH, DELETE'));
+cmsPostsRouter.all('/:id/publish', allowOnly('POST'));

@@ -10,6 +10,11 @@ import type {
 
 type PostFilter = QueryFilter<PostDocument>;
 
+const orNotFound = (post: PostDocument | null) => {
+  if (!post) throw notFound('Post not found');
+  return post;
+};
+
 const findPage = async (
   filter: PostFilter,
   sort: Record<string, SortOrder>,
@@ -53,23 +58,13 @@ export const listPublishedHashtags = () =>
 export const listPosts = ({ status, ...page }: CmsListQuery) =>
   findPage(status ? { status } : {}, { createdAt: -1, _id: -1 }, page);
 
-export const getPost = async (id: string) => {
-  const post = await Post.findById(id);
-  if (!post) throw notFound('Post not found');
-  return post;
-};
+export const getPost = async (id: string) => orNotFound(await Post.findById(id));
 
-export const getPublishedPost = async (id: string) => {
-  const post = await Post.findOne({ _id: id, status: 'published' });
-  if (!post) throw notFound('Post not found');
-  return post;
-};
+export const getPublishedPost = async (id: string) =>
+  orNotFound(await Post.findOne({ _id: id, status: 'published' }));
 
-export const updatePost = async (id: string, input: UpdatePostInput) => {
-  const post = await Post.findByIdAndUpdate(id, { $set: input }, { returnDocument: 'after' });
-  if (!post) throw notFound('Post not found');
-  return post;
-};
+export const updatePost = async (id: string, input: UpdatePostInput) =>
+  orNotFound(await Post.findByIdAndUpdate(id, { $set: input }, { returnDocument: 'after' }));
 
 export const publishPost = async (id: string) => {
   // only one of two parallel requests can match status: 'draft'
@@ -83,6 +78,5 @@ export const publishPost = async (id: string) => {
 };
 
 export const deletePost = async (id: string) => {
-  const deleted = await Post.findByIdAndDelete(id);
-  if (!deleted) throw notFound('Post not found');
+  orNotFound(await Post.findByIdAndDelete(id));
 };

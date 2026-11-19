@@ -1,11 +1,10 @@
-import mongoose from 'mongoose';
-import { config } from './config.js';
+import { connectDb, disconnectDb } from './db.js';
 import { Post } from './posts/post.model.js';
 
 const day = 24 * 60 * 60 * 1000;
 const daysAgo = (n: number) => new Date(Date.now() - n * day);
 
-await mongoose.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+await connectDb();
 
 await Post.deleteMany({});
 await Post.insertMany([
@@ -35,4 +34,4 @@ await Post.insertMany([
 ]);
 
 console.log('Seeded 3 published posts and 2 drafts');
-await mongoose.disconnect();
+await disconnectDb();
