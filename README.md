@@ -31,7 +31,8 @@ There is no authentication system, as the task says. CMS calls need this hardcod
 Authorization: Bearer wink-cms-hardcoded-token
 ```
 
-Blog calls need no token. The token can be changed with the `CMS_API_TOKEN` variable.
+Blog calls need no token. The token can be changed with the `CMS_API_TOKEN` variable in `.env`
+(Docker Compose reads the same file).
 
 ## Endpoints
 
@@ -66,7 +67,7 @@ Errors always look the same:
 ```
 
 Codes: `VALIDATION_ERROR` and `INVALID_JSON` (400), `UNAUTHORIZED` (401), `NOT_FOUND` (404),
-`PAYLOAD_TOO_LARGE` (413), `INTERNAL_ERROR` (500).
+`PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `INTERNAL_ERROR` (500).
 
 ## Try it
 
@@ -74,10 +75,11 @@ Codes: `VALIDATION_ERROR` and `INVALID_JSON` (400), `UNAUTHORIZED` (401), `NOT_F
 API=http://localhost:3000/api/v1
 AUTH='Authorization: Bearer wink-cms-hardcoded-token'
 
-# 1. Create a draft. Copy the "id" from the response.
-curl -s -X POST $API/cms/posts -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"title":"Hello WiNK","body":"First post","hashtags":["#NodeJS","express"]}'
-ID=<paste the id here>
+# 1. Create a draft and keep its id.
+CREATED=$(curl -s -X POST $API/cms/posts -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"title":"Hello WiNK","body":"First post","hashtags":["#NodeJS","express"]}')
+echo "$CREATED"
+ID=$(echo "$CREATED" | sed -E 's/.*"id":"([^"]+)".*/\1/')
 
 # 2. The blog does not show drafts: empty list, and 404 by id.
 curl -s $API/posts

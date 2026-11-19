@@ -11,6 +11,19 @@ describe('CMS auth', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
+  it('accepts the Bearer scheme in any case', async () => {
+    const token = AUTH.Authorization.replace('Bearer ', '');
+    await request(app).get(CMS).set('Authorization', `Bearer ${token}`).expect(200);
+    await request(app).get(CMS).set('Authorization', `bearer ${token}`).expect(200);
+  });
+
+  it('compares the token itself exactly', async () => {
+    const token = AUTH.Authorization.replace('Bearer ', '');
+    const changedCase = token.replace('wink', 'Wink');
+    await request(app).get(CMS).set('Authorization', `Bearer ${changedCase}`).expect(401);
+    await request(app).get(CMS).set('Authorization', token).expect(401);
+  });
+
   it('rejects a wrong token', async () => {
     await request(app).post(CMS).set('Authorization', 'Bearer nope').send({}).expect(401);
     await request(app).delete(`${CMS}/${UNKNOWN_ID}`).set('Authorization', 'nope').expect(401);

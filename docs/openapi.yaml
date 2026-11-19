@@ -89,6 +89,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
     get:
       tags: [CMS]
       summary: List posts of any status
@@ -155,6 +157,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
     delete:
       tags: [CMS]
       summary: Delete a post
@@ -243,10 +247,14 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          pattern: '\S'
+          description: Trimmed before saving; must contain a non-whitespace character.
         body:
           type: string
           minLength: 1
           maxLength: 50000
+          pattern: '\S'
+          description: Trimmed before saving; must contain a non-whitespace character.
         hashtags:
           type: array
           maxItems: 20
@@ -268,10 +276,14 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          pattern: '\S'
+          description: Trimmed before saving; must contain a non-whitespace character.
         body:
           type: string
           minLength: 1
           maxLength: 50000
+          pattern: '\S'
+          description: Trimmed before saving; must contain a non-whitespace character.
         hashtags:
           type: array
           maxItems: 20
@@ -347,6 +359,8 @@ components:
                 - UNAUTHORIZED
                 - NOT_FOUND
                 - PAYLOAD_TOO_LARGE
+                - UNSUPPORTED_MEDIA_TYPE
+                - BAD_REQUEST
                 - INTERNAL_ERROR
             message:
               type: string
@@ -399,6 +413,12 @@ components:
             $ref: '#/components/schemas/Error'
     PayloadTooLarge:
       description: Request body is larger than 256 KB
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: The request charset or content encoding is not supported
       content:
         application/json:
           schema:

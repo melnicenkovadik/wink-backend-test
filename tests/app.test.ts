@@ -28,6 +28,19 @@ describe('app', () => {
     expect(res.body.error.code).toBe('INVALID_JSON');
   });
 
+  it.each([
+    ['charset', { 'Content-Type': 'application/json; charset=unknown-charset' }],
+    ['content encoding', { 'Content-Type': 'application/json', 'Content-Encoding': 'unknown' }],
+  ])('rejects an unsupported %s with 415', async (_name, headers) => {
+    const res = await request(app)
+      .post('/api/v1/cms/posts')
+      .set(AUTH)
+      .set(headers)
+      .send('{"title":"Hello","body":"First post"}')
+      .expect(415);
+    expect(res.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+  });
+
   it('rejects a body over the size limit with 413', async () => {
     const res = await request(app)
       .post('/api/v1/cms/posts')

@@ -13,8 +13,19 @@ const sendError = (
 };
 
 // express.json() reports its failures through a `type` field on the error
-const bodyParserErrorType = (err: unknown) =>
-  typeof err === 'object' && err !== null && 'type' in err ? err.type : undefined;
+const BODY_PARSER_ERRORS: Record<string, [status: number, code: string, message: string]> = {
+  'entity.parse.failed': [400, 'INVALID_JSON', 'Request body is not valid JSON'],
+  'request.aborted': [400, 'BAD_REQUEST', 'Request body was not received completely'],
+  'request.size.invalid': [400, 'BAD_REQUEST', 'Request body does not match Content-Length'],
+  'entity.too.large': [413, 'PAYLOAD_TOO_LARGE', 'Request body is too large'],
+  'charset.unsupported': [415, 'UNSUPPORTED_MEDIA_TYPE', 'Unsupported request charset'],
+  'encoding.unsupported': [415, 'UNSUPPORTED_MEDIA_TYPE', 'Unsupported content encoding'],
+};
+
+const bodyParserError = (err: unknown) =>
+  typeof err === 'object' && err !== null && 'type' in err && typeof err.type === 'string'
+    ? BODY_PARSER_ERRORS[err.type]
+    : undefined;
 
 export const notFoundHandler: RequestHandler = (req) => {
   throw notFound(`Route ${req.method} ${req.path} not found`);
@@ -34,13 +45,8 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
     return sendError(res, err.status, err.code, err.message, err.details);
   }
 
-  const parserError = bodyParserErrorType(err);
-  if (parserError === 'entity.parse.failed') {
-    return sendError(res, 400, 'INVALID_JSON', 'Request body is not valid JSON');
-  }
-  if (parserError === 'entity.too.large') {
-    return sendError(res, 413, 'PAYLOAD_TOO_LARGE', 'Request body is too large');
-  }
+  const parserError = bodyParserError(err);
+  if (parserError) return sendError(res, ...parserError);
 
   console.error(err);
   sendError(res, 500, 'INTERNAL_ERROR', 'Something went wrong');

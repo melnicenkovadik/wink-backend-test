@@ -17,6 +17,8 @@ services:
       - '3000:3000'
     environment:
       MONGODB_URI: mongodb://mongo:27017/wink_blog
+      CMS_API_TOKEN: ${CMS_API_TOKEN:-wink-cms-hardcoded-token}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
     depends_on:
       mongo:
         condition: service_healthy
