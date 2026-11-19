@@ -9,6 +9,8 @@ const server = createApp().listen(config.PORT, () => {
 });
 
 const shutdown = () => {
+  // don't wait forever for a stuck connection
+  setTimeout(() => process.exit(1), 10_000).unref();
   server.close(() => {
     void disconnectDb().then(() => process.exit(0));
   });

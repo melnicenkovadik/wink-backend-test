@@ -17,7 +17,9 @@ const openApiSpec = parse(
 export const createApp = () => {
   const app = express();
 
-  app.use(helmet());
+  // helmet tells browsers to load everything over https by default,
+  // which leaves /docs blank on a plain http host other than localhost
+  app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
   // Location is not readable from browser code unless it is exposed
   app.use(cors({ origin: config.CORS_ORIGIN, exposedHeaders: ['Location'] }));
   app.use(express.json({ limit: '256kb' }));
@@ -29,6 +31,9 @@ export const createApp = () => {
 
   app.get('/', (_req, res) => {
     res.redirect('/docs');
+  });
+  app.get('/openapi.json', (_req, res) => {
+    res.json(openApiSpec);
   });
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 

@@ -13,9 +13,10 @@ describe('app', () => {
     expect(res.body).toEqual({ status: 'ok' });
   });
 
-  it('serves the API docs', async () => {
+  it('serves the API docs, also over plain http', async () => {
     const res = await request(app).get('/docs/').expect(200);
     expect(res.text).toContain('swagger-ui');
+    expect(res.headers['content-security-policy']).not.toContain('upgrade-insecure-requests');
   });
 
   it('redirects the root to the docs', async () => {
@@ -61,6 +62,17 @@ describe('app', () => {
       await mongoose.connect(uri);
     }
     await request(app).get('/api/v1/posts').expect(200);
+  });
+
+  it('answers a CORS preflight for a CMS call without asking for the token', async () => {
+    const res = await request(app)
+      .options('/api/v1/cms/posts')
+      .set('Origin', 'http://cms.example')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'authorization,content-type')
+      .expect(204);
+    expect(res.headers['access-control-allow-origin']).toBe('*');
+    expect(res.headers['access-control-allow-headers']).toBe('authorization,content-type');
   });
 
   it('answers unknown routes with a JSON 404', async () => {

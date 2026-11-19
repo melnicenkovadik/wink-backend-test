@@ -9,6 +9,9 @@ info:
     - CMS endpoints (`/api/v1/cms/posts`) need the header
       `Authorization: Bearer wink-cms-hardcoded-token`.
 
+    Query parameters are checked strictly: an unknown one (say `?hashtag=` instead of
+    `?hashtags=`) is a 400, it is never ignored.
+
     Any `/api/v1` call can also answer `405 METHOD_NOT_ALLOWED` (with an `Allow` header) for a
     method the path does not support, and `503 SERVICE_UNAVAILABLE` (with `Retry-After`) while
     MongoDB is unreachable. Both use the same error body as everything else.
@@ -27,15 +30,7 @@ paths:
       security: []
       description: Newest publication first. Optionally filtered by hashtags.
       parameters:
-        - name: hashtags
-          in: query
-          description: |
-            Comma-separated hashtags. A post matches if it has **any** of them.
-            Matching ignores case and a leading `#` (send it URL-encoded as `%23`),
-            e.g. `?hashtags=%23NodeJS,express`.
-          schema:
-            type: string
-          example: node,express
+        - $ref: '#/components/parameters/Hashtags'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -135,6 +130,7 @@ paths:
           in: query
           schema:
             $ref: '#/components/schemas/Status'
+        - $ref: '#/components/parameters/Hashtags'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -228,6 +224,13 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /openapi.json:
+    get:
+      summary: This document as JSON
+      security: []
+      responses:
+        '200':
+          description: The OpenAPI document, e.g. to generate client types
   /health:
     get:
       summary: Health check
@@ -252,12 +255,24 @@ components:
         type: string
         pattern: '^[0-9a-fA-F]{24}$'
       example: 673c9f0e5b1d4a2f9c8e7a11
+    Hashtags:
+      name: hashtags
+      in: query
+      description: |
+        Comma-separated hashtags, at most 20. The parameter can also be repeated
+        (`?hashtags=node&hashtags=express`). A post matches if it has **any** of them.
+        Matching ignores case and a leading `#` (send it URL-encoded as `%23`),
+        e.g. `?hashtags=%23NodeJS,express`.
+      schema:
+        type: string
+      example: node,express
     Page:
       name: page
       in: query
       schema:
         type: integer
         minimum: 1
+        maximum: 1000
         default: 1
     Limit:
       name: limit

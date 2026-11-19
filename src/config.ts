@@ -8,4 +8,10 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('*'),
 });
 
-export const config = envSchema.parse(process.env);
+const parsed = envSchema.safeParse(process.env);
+if (!parsed.success) {
+  console.error(`Invalid environment variables:\n${z.prettifyError(parsed.error)}`);
+  process.exit(1);
+}
+
+export const config = parsed.data;

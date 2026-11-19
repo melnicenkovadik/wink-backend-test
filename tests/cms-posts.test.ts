@@ -95,6 +95,22 @@ describe('create a post', () => {
     expect(res.body.error.details.length).toBeGreaterThan(0);
   });
 
+  it('keeps the body exactly as sent, indentation included', async () => {
+    const body = '    const indented = true;\n';
+    const post = await createPost({ title: '  Hello  ', body });
+    expect(post.body).toBe(body);
+    expect(post.title).toBe('Hello');
+  });
+
+  it.each(['"a string"', '42', 'null', '[]'])('rejects the JSON body %s with 400', async (raw) => {
+    await request(app)
+      .post(CMS)
+      .set(AUTH)
+      .set('Content-Type', 'application/json')
+      .send(raw)
+      .expect(400);
+  });
+
   it('counts the length limit before trimming, as the OpenAPI schema does', async () => {
     const padded = ` ${'a'.repeat(200)} `;
     await request(app).post(CMS).set(AUTH).send({ title: padded, body: 'text' }).expect(400);
@@ -256,5 +272,24 @@ describe('CMS list', () => {
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].id).toBe(draft.id);
     expect(res.body.meta.total).toBe(1);
+  });
+
+  it('filters by hashtags, drafts included', async () => {
+    const draft = await createPost({ hashtags: ['node'] });
+    const published = await createPost({ hashtags: ['express'], status: 'published' });
+    await createPost({ hashtags: ['other'] });
+
+    const res = await request(app).get(`${CMS}?hashtags=node,express`).set(AUTH).expect(200);
+    const drafts = await request(app)
+      .get(`${CMS}?hashtags=node,express&status=draft`)
+      .set(AUTH)
+      .expect(200);
+
+    expect(res.body.data.map((post: { id: string }) => post.id)).toEqual([published.id, draft.id]);
+    expect(drafts.body.data.map((post: { id: string }) => post.id)).toEqual([draft.id]);
+  });
+
+  it('rejects an unknown query parameter', async () => {
+    await request(app).get(`${CMS}?state=draft`).set(AUTH).expect(400);
   });
 });

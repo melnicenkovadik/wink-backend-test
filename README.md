@@ -47,20 +47,21 @@ Blog calls need no token. The token can be changed with the `CMS_API_TOKEN` vari
 
 ## Endpoints
 
-| Client | Method and path                      | What it does                               |
-| ------ | ------------------------------------ | ------------------------------------------ |
-| Blog   | `GET /api/v1/posts`                  | List published posts, filter by `hashtags` |
-| Blog   | `GET /api/v1/posts/:id`              | Read one published post                    |
-| Blog   | `GET /api/v1/hashtags`               | Hashtags in use, with post counts          |
-| CMS    | `POST /api/v1/cms/posts`             | Create a post                              |
-| CMS    | `GET /api/v1/cms/posts`              | List all posts, filter by `status`         |
-| CMS    | `GET /api/v1/cms/posts/:id`          | Read one post of any status                |
-| CMS    | `PATCH /api/v1/cms/posts/:id`        | Edit title, body or hashtags               |
-| CMS    | `POST /api/v1/cms/posts/:id/publish` | Publish a post                             |
-| CMS    | `DELETE /api/v1/cms/posts/:id`       | Delete a post                              |
-|        | `GET /health`                        | Health check                               |
+| Client | Method and path                      | What it does                                   |
+| ------ | ------------------------------------ | ---------------------------------------------- |
+| Blog   | `GET /api/v1/posts`                  | List published posts, filter by `hashtags`     |
+| Blog   | `GET /api/v1/posts/:id`              | Read one published post                        |
+| Blog   | `GET /api/v1/hashtags`               | Hashtags in use, with post counts              |
+| CMS    | `POST /api/v1/cms/posts`             | Create a post                                  |
+| CMS    | `GET /api/v1/cms/posts`              | List all posts, filter by `status`, `hashtags` |
+| CMS    | `GET /api/v1/cms/posts/:id`          | Read one post of any status                    |
+| CMS    | `PATCH /api/v1/cms/posts/:id`        | Edit title, body or hashtags                   |
+| CMS    | `POST /api/v1/cms/posts/:id/publish` | Publish a post                                 |
+| CMS    | `DELETE /api/v1/cms/posts/:id`       | Delete a post                                  |
+|        | `GET /health`                        | Health check                                   |
+|        | `GET /openapi.json`                  | The API contract as JSON                       |
 
-Lists take `page` (default 1) and `limit` (default 20, max 100) and return
+Lists take `page` (default 1, max 1000) and `limit` (default 20, max 100) and return
 `{ "data": [...], "meta": { "page", "limit", "total", "totalPages" } }`.
 
 The full contract is in [docs/openapi.yaml](docs/openapi.yaml), served as Swagger UI on `/docs`.
@@ -155,13 +156,21 @@ Some things are not defined in the task, so here is what I went with.
   the same with its input, so `#NodeJS` and `nodejs` are one tag. Only letters, digits and `_`
   are allowed.
 - With several hashtags (`?hashtags=node,express`) you get posts that have at least one of them.
+  The parameter can also be repeated (`?hashtags=node&hashtags=express`), because that is what
+  `URLSearchParams` and most HTTP clients send for an array.
+- Query parameters are strict. `?hashtag=node` (a typo) is a 400. If it was ignored the reader
+  would get the whole list and think the filter works.
 - `GET /api/v1/hashtags` gives the tags of published posts with counts. Readers can't filter by a
   tag they don't know exists, and tags used only in drafts must not leak there.
 - If MongoDB goes down the API answers 503 right away. Without that check Mongoose holds the
   request for 10 seconds and then it ends as a 500.
 - The blog is sorted by `publishedAt` (then `_id`), not by creation date.
 - Delete is a real delete and works for drafts and published posts.
-- The body is stored as is. The API doesn't sanitize it, escaping is up to whoever renders it.
+- The body is stored exactly as sent, it is not even trimmed (indentation matters in Markdown).
+  The API doesn't sanitize it, escaping is up to whoever renders it.
+- Blog responses carry an `ETag`, so a client that already has the list gets a 304.
+- The token is compared with a plain `!==`. It is a public value from this README, so a
+  constant-time comparison would protect nothing. Real auth is in the next steps.
 - CORS is open by default (`CORS_ORIGIN=*`), I assume the clients are browser apps on other
   domains. `Location` is exposed so the CMS can read it after a create.
 - CMS responses have `Cache-Control: no-store`, so drafts are not cached anywhere.
@@ -192,12 +201,23 @@ npm test
 ```
 
 The tests send HTTP requests to the real app and use a real MongoDB started by
-`mongodb-memory-server`. The first run downloads a MongoDB binary, so it needs a network
+`mongodb-memory-server`. One file ([openapi.test.ts](tests/openapi.test.ts)) calls every operation
+from `docs/openapi.yaml` and checks that the app answers with a status and an error code the
+spec lists, so the docs can't quietly go out of date. The first run downloads a MongoDB binary, so it needs a network
 connection and takes longer.
 
 Other checks: `npm run lint`, `npm run typecheck`, `npm run build`.
 
 ## Next steps
 
-Not done, since the task doesn't ask for it: unpublishing, real auth with roles, rate limiting,
-proper logging, cursor pagination.
+Left out because the task doesn't ask for them. How I would do each:
+
+- Unpublish: `POST /cms/posts/:id/unpublish`, the same conditional update as publish, the other
+  way round. The open question is what happens to `publishedAt`, I would keep it.
+- Posts that match all hashtags: a `match=all` parameter that swaps `$in` for `$all` in
+  `withHashtags`. One line, but the task only says "filter by hashtags".
+- Real auth: replace `require-cms-token.ts` with JWT verification and roles. It is mounted once
+  for the whole CMS router, so nothing else changes.
+- Lost updates on edit: `If-Match` with the post's `ETag` on `PATCH`, 412 if it changed.
+- Cursor pagination on `(publishedAt, _id)`. The sort and the index are already there.
+- Rate limiting and request logging with a request id, most likely at the proxy.

@@ -65,11 +65,36 @@ describe('public list', () => {
     'limit=0',
     'limit=101',
     'limit=abc',
-    'hashtags=a&hashtags=b',
+    'page=1e2',
+    'page=1.5',
+    'page=1001',
+    'page=1&page=2',
     'hashtags=c%2B%2B',
+    'hashtag=node',
+    'hashtags[]=node',
+    'status=draft',
   ])('rejects ?%s with 400', async (query) => {
     const res = await request(app).get(`${BLOG}?${query}`).expect(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('caching', () => {
+  it('answers 304 when the client already has the same list', async () => {
+    await createPost({ status: 'published' });
+    const first = await request(app).get(BLOG).expect(200);
+    const etag = String(first.headers.etag);
+
+    await request(app).get(BLOG).set('If-None-Match', etag).expect(304);
+
+    await createPost({ status: 'published' });
+    await request(app).get(BLOG).set('If-None-Match', etag).expect(200);
+  });
+
+  it('answers HEAD like GET, without a body', async () => {
+    const res = await request(app).head(BLOG).expect(200);
+    expect(res.text).toBeUndefined();
+    expect(res.headers['content-type']).toContain('application/json');
   });
 });
 
@@ -91,6 +116,26 @@ describe('filter by hashtags', () => {
     const post = await createPost({ hashtags: ['NodeJS'], status: 'published' });
 
     const res = await request(app).get(`${BLOG}?hashtags=%23NodeJS,express`).expect(200);
+
+    expect(ids(res)).toEqual([post.id]);
+  });
+
+  it('takes the list comma-separated, as a repeated parameter, or both', async () => {
+    const node = await createPost({ hashtags: ['node'], status: 'published' });
+    const express = await createPost({ hashtags: ['express'], status: 'published' });
+    const api = await createPost({ hashtags: ['api'], status: 'published' });
+
+    const repeated = await request(app).get(`${BLOG}?hashtags=node&hashtags=express`).expect(200);
+    const mixed = await request(app).get(`${BLOG}?hashtags=node,,express&hashtags=api`).expect(200);
+
+    expect(ids(repeated)).toEqual([express.id, node.id]);
+    expect(ids(mixed)).toEqual([api.id, express.id, node.id]);
+  });
+
+  it('finds an accented tag however the accent was typed', async () => {
+    const post = await createPost({ hashtags: ['caf\u00e9'], status: 'published' });
+
+    const res = await request(app).get(`${BLOG}?hashtags=${encodeURIComponent('cafe\u0301')}`);
 
     expect(ids(res)).toEqual([post.id]);
   });

@@ -13,6 +13,8 @@ services:
 
   api:
     build: .
+    # forwards SIGTERM to node, so the server can finish open requests
+    init: true
     ports:
       - '3000:3000'
     environment:

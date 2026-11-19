@@ -37,12 +37,12 @@ export const createPost = (input: CreatePostInput) =>
     publishedAt: input.status === 'published' ? new Date() : null,
   });
 
-export const listPublishedPosts = ({ hashtags, ...page }: PublicListQuery) => {
-  const filter: PostFilter = { status: 'published' };
-  if (hashtags.length > 0) filter.hashtags = { $in: hashtags };
+const withHashtags = (filter: PostFilter, hashtags: string[]): PostFilter =>
+  hashtags.length > 0 ? { ...filter, hashtags: { $in: hashtags } } : filter;
+
+export const listPublishedPosts = ({ hashtags, ...page }: PublicListQuery) =>
   // _id as a tie-breaker, otherwise pages can overlap
-  return findPage(filter, { publishedAt: -1, _id: -1 }, page);
-};
+  findPage(withHashtags({ status: 'published' }, hashtags), { publishedAt: -1, _id: -1 }, page);
 
 // tags of published posts only, most used first
 export const listPublishedHashtags = () =>
@@ -52,11 +52,11 @@ export const listPublishedHashtags = () =>
     { $group: { _id: '$hashtags', posts: { $sum: 1 } } },
     { $sort: { posts: -1, _id: 1 } },
     { $limit: 100 },
-    { $project: { _id: 0, hashtag: '$_id', posts: 1 } },
+    { $replaceWith: { hashtag: '$_id', posts: '$posts' } },
   ]);
 
-export const listPosts = ({ status, ...page }: CmsListQuery) =>
-  findPage(status ? { status } : {}, { createdAt: -1, _id: -1 }, page);
+export const listPosts = ({ status, hashtags, ...page }: CmsListQuery) =>
+  findPage(withHashtags(status ? { status } : {}, hashtags), { createdAt: -1, _id: -1 }, page);
 
 export const getPost = async (id: string) => orNotFound(await Post.findById(id));
 
