@@ -11,5 +11,15 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/wink_blog
+    depends_on:
+      mongo:
+        condition: service_healthy
+
 volumes:
   mongo-data:
