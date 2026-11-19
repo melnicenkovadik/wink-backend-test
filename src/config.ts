@@ -6,6 +6,7 @@ const envSchema = z.object({
   // hardcoded on purpose, see README
   CMS_API_TOKEN: z.string().min(1).default('wink-cms-hardcoded-token'),
   CORS_ORIGIN: z.string().default('*'),
+  DB_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 });
 
 const parsed = envSchema.safeParse(process.env);

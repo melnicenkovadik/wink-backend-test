@@ -3,7 +3,7 @@
 import { createApp } from '../dist/app.js';
 import { connectDb } from '../dist/db.js';
 
-// if the database is down the app still starts and answers 503
+// warm up the connection. if MongoDB is down the app still starts and answers 503
 await connectDb().catch(console.error);
 
 export default createApp();

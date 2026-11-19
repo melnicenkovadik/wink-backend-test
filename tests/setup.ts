@@ -1,14 +1,16 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import mongoose from 'mongoose';
 import { afterAll, afterEach, beforeAll } from 'vitest';
+import { config } from '../src/config.js';
+import { connectDb, disconnectDb } from '../src/db.js';
 import { Post } from '../src/posts/post.model.js';
 
 let mongod: MongoMemoryServer;
 
 beforeAll(async () => {
   mongod = await MongoMemoryServer.create();
-  await mongoose.connect(mongod.getUri('wink_blog_test'));
-  await Post.init();
+  config.MONGODB_URI = mongod.getUri('wink_blog_test');
+  config.DB_TIMEOUT_MS = 500;
+  await connectDb();
 });
 
 afterEach(async () => {
@@ -16,6 +18,6 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
+  await disconnectDb();
   await mongod.stop();
 });

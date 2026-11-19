@@ -162,8 +162,9 @@ Some things are not defined in the task, so here is what I went with.
   would get the whole list and think the filter works.
 - `GET /api/v1/hashtags` gives the tags of published posts with counts. Readers can't filter by a
   tag they don't know exists, and tags used only in drafts must not leak there.
-- If MongoDB goes down the API answers 503 right away. Without that check Mongoose holds the
-  request for 10 seconds and then it ends as a 500.
+- If MongoDB is down the API answers 503 (after `DB_TIMEOUT_MS`, 5 seconds by default) and not
+  a 500, and it reconnects on its own. A request that arrives while the connection is still
+  opening just waits for it.
 - The blog is sorted by `publishedAt` (then `_id`), not by creation date.
 - Delete is a real delete and works for drafts and published posts.
 - The body is stored exactly as sent, it is not even trimmed (indentation matters in Markdown).

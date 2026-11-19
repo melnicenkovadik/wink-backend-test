@@ -1,7 +1,8 @@
 import { gzipSync } from 'node:zlib';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import mongoose from 'mongoose';
+import { config } from '../src/config.js';
+import { disconnectDb } from '../src/db.js';
 import { app, AUTH, UNKNOWN_ID } from './helpers.js';
 
 // otherwise superagent stringifies the buffer
@@ -50,18 +51,29 @@ describe('app', () => {
     await request(app).put('/api/v1/cms/posts').expect(401);
   });
 
-  it('answers 503 right away while the database is down', async () => {
-    const uri = `mongodb://${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`;
-    await mongoose.disconnect();
-    try {
-      const res = await request(app).get('/api/v1/posts').expect(503);
-      expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
-      expect(res.headers['retry-after']).toBe('5');
-      await request(app).get('/health').expect(503);
-    } finally {
-      await mongoose.connect(uri);
-    }
+  it('answers 503 while the database is down and recovers on its own', async () => {
+    const uri = config.MONGODB_URI;
+    await disconnectDb();
+    config.MONGODB_URI = 'mongodb://127.0.0.1:1/nothing_here';
+
+    const res = await request(app).get('/api/v1/posts').expect(503);
+    expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
+    expect(res.headers['retry-after']).toBe('5');
+    await request(app).get('/health').expect(503);
+
+    config.MONGODB_URI = uri;
     await request(app).get('/api/v1/posts').expect(200);
+    await request(app).get('/health').expect(200);
+  });
+
+  it('does not answer 503 to requests that arrive while the connection is still opening', async () => {
+    await disconnectDb();
+
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () => request(app).get('/api/v1/posts')),
+    );
+
+    expect(responses.map((res) => res.status)).toEqual([200, 200, 200, 200, 200]);
   });
 
   it('answers a CORS preflight for a CMS call without asking for the token', async () => {

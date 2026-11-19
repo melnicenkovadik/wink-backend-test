@@ -1,10 +1,11 @@
 import type { RequestHandler } from 'express';
-import { isDbUp } from '../db.js';
-import { methodNotAllowed, serviceUnavailable, unsupportedMediaType } from '../errors.js';
+import { connectDb } from '../db.js';
+import { methodNotAllowed, unsupportedMediaType } from '../errors.js';
 
-// without this mongoose queues the query for 10s and the client gets a 500
-export const requireDb: RequestHandler = (_req, _res, next) => {
-  if (!isDbUp()) throw serviceUnavailable();
+// does nothing once connected. matters when the first connection failed (a serverless
+// cold start while MongoDB was down): the next request tries again
+export const requireDb: RequestHandler = async (_req, _res, next) => {
+  await connectDb();
   next();
 };
 

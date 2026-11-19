@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler, Response } from 'express';
 import { ZodError } from 'zod';
-import { AppError, notFound } from '../errors.js';
+import { isDbDownError } from '../db.js';
+import { AppError, notFound, serviceUnavailable } from '../errors.js';
 
 type ErrorDetail = { path: string; message: string };
 
@@ -42,7 +43,9 @@ export const notFoundHandler: RequestHandler = (req) => {
   throw notFound(`Route ${req.method} ${req.path} not found`);
 };
 
-export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (thrown: unknown, _req, res, _next) => {
+  const err = isDbDownError(thrown) ? serviceUnavailable() : thrown;
+
   if (err instanceof ZodError) {
     const details = err.issues.map((issue) => ({
       path: issue.path.join('.'),

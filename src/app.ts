@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import swaggerUi from 'swagger-ui-express';
 import { parse } from 'yaml';
 import { config } from './config.js';
-import { isDbUp } from './db.js';
+import { pingDb } from './db.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { requireDb } from './middleware/guards.js';
 import { cmsPostsRouter, hashtagsRouter, publicPostsRouter } from './posts/post.routes.js';
@@ -24,8 +24,11 @@ export const createApp = () => {
   app.use(cors({ origin: config.CORS_ORIGIN, exposedHeaders: ['Location'] }));
   app.use(express.json({ limit: '256kb' }));
 
-  app.get('/health', (_req, res) => {
-    const up = isDbUp();
+  app.get('/health', async (_req, res) => {
+    const up = await pingDb().then(
+      () => true,
+      () => false,
+    );
     res.status(up ? 200 : 503).json({ status: up ? 'ok' : 'unavailable' });
   });
 
