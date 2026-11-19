@@ -1,7 +1,8 @@
 import { gzipSync } from 'node:zlib';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { app, AUTH } from './helpers.js';
+import mongoose from 'mongoose';
+import { app, AUTH, UNKNOWN_ID } from './helpers.js';
 
 // otherwise superagent stringifies the buffer
 const sendAsIs = (body: Buffer) => body as unknown as string;
@@ -29,6 +30,37 @@ describe('app', () => {
 
     const blog = await request(app).get('/api/v1/posts').expect(200);
     expect(blog.headers['cache-control']).toBeUndefined();
+  });
+
+  it.each([
+    ['delete', '/api/v1/posts', 'GET, HEAD'],
+    ['post', `/api/v1/posts/${UNKNOWN_ID}`, 'GET, HEAD'],
+    ['post', '/api/v1/hashtags', 'GET, HEAD'],
+    ['put', '/api/v1/cms/posts', 'GET, HEAD, POST'],
+    ['put', `/api/v1/cms/posts/${UNKNOWN_ID}`, 'GET, HEAD, PATCH, DELETE'],
+    ['get', `/api/v1/cms/posts/${UNKNOWN_ID}/publish`, 'POST'],
+  ] as const)('answers %s %s with 405 and Allow', async (method, path, allow) => {
+    const res = await request(app)[method](path).set(AUTH).expect(405);
+    expect(res.headers.allow).toBe(allow);
+    expect(res.body.error.code).toBe('METHOD_NOT_ALLOWED');
+  });
+
+  it('checks the token before the method on CMS paths', async () => {
+    await request(app).put('/api/v1/cms/posts').expect(401);
+  });
+
+  it('answers 503 right away while the database is down', async () => {
+    const uri = `mongodb://${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`;
+    await mongoose.disconnect();
+    try {
+      const res = await request(app).get('/api/v1/posts').expect(503);
+      expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
+      expect(res.headers['retry-after']).toBe('5');
+      await request(app).get('/health').expect(503);
+    } finally {
+      await mongoose.connect(uri);
+    }
+    await request(app).get('/api/v1/posts').expect(200);
   });
 
   it('answers unknown routes with a JSON 404', async () => {

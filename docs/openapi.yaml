@@ -8,6 +8,10 @@ info:
     - Blog endpoints (`/api/v1/posts`) need no token and only ever return published posts.
     - CMS endpoints (`/api/v1/cms/posts`) need the header
       `Authorization: Bearer wink-cms-hardcoded-token`.
+
+    Any `/api/v1` call can also answer `405 METHOD_NOT_ALLOWED` (with an `Allow` header) for a
+    method the path does not support, and `503 SERVICE_UNAVAILABLE` (with `Retry-After`) while
+    MongoDB is unreachable. Both use the same error body as everything else.
 servers:
   - url: /
 tags:
@@ -39,6 +43,35 @@ paths:
           $ref: '#/components/responses/PostList'
         '400':
           $ref: '#/components/responses/ValidationError'
+  /api/v1/hashtags:
+    get:
+      tags: [Blog]
+      summary: List hashtags used by published posts
+      security: []
+      description: |
+        Most used first, at most 100. Drafts are not counted. Meant for a tag cloud or a
+        filter menu on the blog.
+      responses:
+        '200':
+          description: Hashtags with the number of published posts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [hashtag, posts]
+                      properties:
+                        hashtag:
+                          type: string
+                          example: nodejs
+                        posts:
+                          type: integer
+                          example: 3
   /api/v1/posts/{id}:
     get:
       tags: [Blog]
@@ -361,6 +394,8 @@ components:
                 - PAYLOAD_TOO_LARGE
                 - UNSUPPORTED_MEDIA_TYPE
                 - BAD_REQUEST
+                - METHOD_NOT_ALLOWED
+                - SERVICE_UNAVAILABLE
                 - INTERNAL_ERROR
             message:
               type: string

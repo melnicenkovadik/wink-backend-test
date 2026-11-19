@@ -39,6 +39,17 @@ export const listPublishedPosts = ({ hashtags, ...page }: PublicListQuery) => {
   return findPage(filter, { publishedAt: -1, _id: -1 }, page);
 };
 
+// tags of published posts only, most used first
+export const listPublishedHashtags = () =>
+  Post.aggregate<{ hashtag: string; posts: number }>([
+    { $match: { status: 'published' } },
+    { $unwind: '$hashtags' },
+    { $group: { _id: '$hashtags', posts: { $sum: 1 } } },
+    { $sort: { posts: -1, _id: 1 } },
+    { $limit: 100 },
+    { $project: { _id: 0, hashtag: '$_id', posts: 1 } },
+  ]);
+
 export const listPosts = ({ status, ...page }: CmsListQuery) =>
   findPage(status ? { status } : {}, { createdAt: -1, _id: -1 }, page);
 

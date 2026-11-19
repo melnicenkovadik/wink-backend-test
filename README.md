@@ -47,6 +47,7 @@ Blog calls need no token. The token can be changed with the `CMS_API_TOKEN` vari
 | ------ | ------------------------------------ | ------------------------------------------ |
 | Blog   | `GET /api/v1/posts`                  | List published posts, filter by `hashtags` |
 | Blog   | `GET /api/v1/posts/:id`              | Read one published post                    |
+| Blog   | `GET /api/v1/hashtags`               | Hashtags in use, with post counts          |
 | CMS    | `POST /api/v1/cms/posts`             | Create a post                              |
 | CMS    | `GET /api/v1/cms/posts`              | List all posts, filter by `status`         |
 | CMS    | `GET /api/v1/cms/posts/:id`          | Read one post of any status                |
@@ -74,7 +75,28 @@ Errors always look the same:
 ```
 
 Codes: `VALIDATION_ERROR`, `INVALID_JSON` and `BAD_REQUEST` (400), `UNAUTHORIZED` (401), `NOT_FOUND` (404),
-`PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `INTERNAL_ERROR` (500).
+`METHOD_NOT_ALLOWED` (405, with `Allow`), `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415),
+`INTERNAL_ERROR` (500), `SERVICE_UNAVAILABLE` (503, while MongoDB is down).
+
+## Task checklist
+
+Where each line of the task lives in the code.
+
+| Task                          | Endpoint                             | Code                                                                 | Tests                                              |
+| ----------------------------- | ------------------------------------ | -------------------------------------------------------------------- | -------------------------------------------------- |
+| Express, MongoDB, TypeScript  |                                      | [app.ts](src/app.ts), [post.model.ts](src/posts/post.model.ts)       |                                                    |
+| Show list of public posts     | `GET /api/v1/posts`                  | `listPublishedPosts` in [post.service.ts](src/posts/post.service.ts) | [public-posts.test.ts](tests/public-posts.test.ts) |
+| Create a post                 | `POST /api/v1/cms/posts`             | `createPostSchema` in [post.schemas.ts](src/posts/post.schemas.ts)   | [cms-posts.test.ts](tests/cms-posts.test.ts)       |
+| title, body, list of hashtags |                                      | same schema, [hashtags.ts](src/posts/hashtags.ts)                    | [hashtags.test.ts](tests/hashtags.test.ts)         |
+| status, default is draft      |                                      | `status` in `createPostSchema`                                       | "creates a draft by Brian Fox ..."                 |
+| author is always Brian Fox    |                                      | `AUTHOR_NAME` in [post.model.ts](src/posts/post.model.ts), immutable | same test                                          |
+| Publish a post                | `POST /api/v1/cms/posts/:id/publish` | `publishPost` in [post.service.ts](src/posts/post.service.ts)        | "publish a post" block, incl. two parallel calls   |
+| Delete a post                 | `DELETE /api/v1/cms/posts/:id`       | `deletePost` in [post.service.ts](src/posts/post.service.ts)         | "delete a post" block                              |
+| Filter posts by hashtags      | `GET /api/v1/posts?hashtags=a,b`     | `publicListQuerySchema`, `listPublishedPosts`                        | "filter by hashtags" block                         |
+| Hardcoded token, in the docs  | all of `/api/v1/cms`                 | [require-cms-token.ts](src/middleware/require-cms-token.ts)          | "CMS auth" block                                   |
+
+Not asked for, but I think a client developer would need them: reading one post, the CMS list with
+drafts, editing, the list of hashtags for a filter menu, pagination, one error format.
 
 ## Try it
 
@@ -129,6 +151,10 @@ Some things are not defined in the task, so here is what I went with.
   the same with its input, so `#NodeJS` and `nodejs` are one tag. Only letters, digits and `_`
   are allowed.
 - With several hashtags (`?hashtags=node,express`) you get posts that have at least one of them.
+- `GET /api/v1/hashtags` gives the tags of published posts with counts. Readers can't filter by a
+  tag they don't know exists, and tags used only in drafts must not leak there.
+- If MongoDB goes down the API answers 503 right away. Without that check Mongoose holds the
+  request for 10 seconds and then it ends as a 500.
 - The blog is sorted by `publishedAt` (then `_id`), not by creation date.
 - Delete is a real delete and works for drafts and published posts.
 - The body is stored as is. The API doesn't sanitize it, escaping is up to whoever renders it.
@@ -168,4 +194,4 @@ Other checks: `npm run lint`, `npm run typecheck`, `npm run build`.
 ## Next steps
 
 Not done, since the task doesn't ask for it: unpublishing, real auth with roles, rate limiting,
-proper logging, cursor pagination, CI.
+proper logging, cursor pagination.

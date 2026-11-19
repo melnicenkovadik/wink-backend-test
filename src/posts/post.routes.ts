@@ -15,6 +15,7 @@ import {
   getPost,
   getPublishedPost,
   listPosts,
+  listPublishedHashtags,
   listPublishedPosts,
   publishPost,
   updatePost,
@@ -28,6 +29,20 @@ const postListResponse = (
   meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
 });
 
+const methodNotAllowed =
+  (allow: string): RequestHandler =>
+  (_req, res) => {
+    res.set('Allow', allow);
+    throw new AppError(405, 'METHOD_NOT_ALLOWED', `Allowed methods: ${allow}`);
+  };
+
+export const hashtagsRouter = Router();
+
+hashtagsRouter.get('/', async (_req, res) => {
+  res.json({ data: await listPublishedHashtags() });
+});
+hashtagsRouter.all('/', methodNotAllowed('GET, HEAD'));
+
 export const publicPostsRouter = Router();
 
 publicPostsRouter.get('/', async (req, res) => {
@@ -39,6 +54,9 @@ publicPostsRouter.get('/:id', async (req, res) => {
   const { id } = postParamsSchema.parse(req.params);
   res.json({ data: toPostResponse(await getPublishedPost(id)) });
 });
+
+publicPostsRouter.all('/', methodNotAllowed('GET, HEAD'));
+publicPostsRouter.all('/:id', methodNotAllowed('GET, HEAD'));
 
 const requireJsonBody: RequestHandler = (req, _res, next) => {
   // empty body is fine here, zod will answer 400
@@ -92,3 +110,7 @@ cmsPostsRouter.delete('/:id', async (req, res) => {
   await deletePost(id);
   res.status(204).end();
 });
+
+cmsPostsRouter.all('/', methodNotAllowed('GET, HEAD, POST'));
+cmsPostsRouter.all('/:id', methodNotAllowed('GET, HEAD, PATCH, DELETE'));
+cmsPostsRouter.all('/:id/publish', methodNotAllowed('POST'));

@@ -109,6 +109,28 @@ describe('filter by hashtags', () => {
   });
 });
 
+describe('hashtag list', () => {
+  it('counts published posts per hashtag, most used first, and ignores drafts', async () => {
+    await createPost({ hashtags: ['node', 'express'], status: 'published' });
+    await createPost({ hashtags: ['node', 'api'], status: 'published' });
+    await createPost({ hashtags: ['node', 'secret'] });
+
+    const res = await request(app).get('/api/v1/hashtags').expect(200);
+
+    expect(res.body.data).toEqual([
+      { hashtag: 'node', posts: 2 },
+      { hashtag: 'api', posts: 1 },
+      { hashtag: 'express', posts: 1 },
+    ]);
+  });
+
+  it('is empty when nothing is published', async () => {
+    await createPost({ hashtags: ['node'] });
+    const res = await request(app).get('/api/v1/hashtags').expect(200);
+    expect(res.body.data).toEqual([]);
+  });
+});
+
 describe('public single post', () => {
   it('returns a published post', async () => {
     const post = await createPost({ status: 'published', hashtags: ['node'] });
