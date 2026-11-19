@@ -1,7 +1,12 @@
 import type { QueryFilter, SortOrder } from 'mongoose';
 import { notFound } from '../errors.js';
 import { AUTHOR_NAME, Post, type PostDocument } from './post.model.js';
-import type { CmsListQuery, CreatePostInput, PublicListQuery } from './post.schemas.js';
+import type {
+  CmsListQuery,
+  CreatePostInput,
+  PublicListQuery,
+  UpdatePostInput,
+} from './post.schemas.js';
 
 type PostFilter = QueryFilter<PostDocument>;
 
@@ -47,6 +52,12 @@ export const getPost = async (id: string) => {
 // a draft answers 404 here, the same as a post that does not exist
 export const getPublishedPost = async (id: string) => {
   const post = await Post.findOne({ _id: id, status: 'published' });
+  if (!post) throw notFound('Post not found');
+  return post;
+};
+
+export const updatePost = async (id: string, input: UpdatePostInput) => {
+  const post = await Post.findByIdAndUpdate(id, { $set: input }, { returnDocument: 'after' });
   if (!post) throw notFound('Post not found');
   return post;
 };

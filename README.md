@@ -41,6 +41,7 @@ Blog calls need no token. The token can be changed with the `CMS_API_TOKEN` vari
 | CMS    | `POST /api/v1/cms/posts`             | Create a post                              |
 | CMS    | `GET /api/v1/cms/posts`              | List all posts, filter by `status`         |
 | CMS    | `GET /api/v1/cms/posts/:id`          | Read one post of any status                |
+| CMS    | `PATCH /api/v1/cms/posts/:id`        | Edit title, body or hashtags               |
 | CMS    | `POST /api/v1/cms/posts/:id/publish` | Publish a post                             |
 | CMS    | `DELETE /api/v1/cms/posts/:id`       | Delete a post                              |
 |        | `GET /health`                        | Health check                               |
@@ -108,6 +109,8 @@ The task leaves some things open. This is what I chose and why.
 - **Create.** The server always sets the author to Brian Fox; sending `author` (or any unknown
   field) is a 400. A missing `status` means `draft`, and `published` can be sent to publish right
   away. Missing `hashtags` means `[]`; if sent, it must be an array of strings.
+- **Edit is `PATCH /:id`** and only touches `title`, `body` and `hashtags`. The task does not
+  list it, but a CMS where a typo cannot be fixed is hard to use. It never changes the status.
 - **Publish is `POST /:id/publish`.** It is one atomic MongoDB update with the condition
   `status: draft`. Publishing an already published post returns it unchanged, so a retry is safe,
   and two requests at the same time end up with one `publishedAt`.
@@ -156,5 +159,5 @@ Other checks: `npm run lint`, `npm run typecheck`, `npm run build`.
 
 ## Next steps
 
-Things I left out because the task does not ask for them: editing and unpublishing a post, real
+Things I left out because the task does not ask for them: unpublishing a post, real
 authentication with roles, rate limiting, structured logs, cursor pagination for large feeds, CI.

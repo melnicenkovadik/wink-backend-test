@@ -126,6 +126,35 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [CMS]
+      summary: Edit a post
+      description: |
+        Changes `title`, `body` and/or `hashtags`. Fields that are not sent stay as they are.
+        The status does not change here; use the publish endpoint.
+      security:
+        - cmsToken: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePost'
+            example:
+              title: A better title
+      responses:
+        '200':
+          $ref: '#/components/responses/Post'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
     delete:
       tags: [CMS]
       summary: Delete a post
@@ -230,6 +259,24 @@ components:
           allOf:
             - $ref: '#/components/schemas/Status'
           default: draft
+    UpdatePost:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        body:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        hashtags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
     Post:
       type: object
       required: [id, title, body, hashtags, status, author, createdAt, updatedAt, publishedAt]

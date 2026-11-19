@@ -21,12 +21,24 @@ export const postParamsSchema = z.object({
   id: z.string().regex(/^[0-9a-f]{24}$/i, 'Invalid post id'),
 });
 
+const title = z.string().trim().min(1).max(200);
+const body = z.string().trim().min(1).max(50_000);
+
 export const createPostSchema = z.strictObject({
-  title: z.string().trim().min(1).max(200),
-  body: z.string().trim().min(1).max(50_000),
+  title,
+  body,
   hashtags: hashtags.default([]),
   status: z.enum(POST_STATUSES).default('draft'),
 });
+
+// status is not editable here: publishing has its own endpoint
+export const updatePostSchema = z
+  .strictObject({
+    title: title.optional(),
+    body: body.optional(),
+    hashtags: hashtags.optional(),
+  })
+  .refine((fields) => Object.keys(fields).length > 0, 'Send at least one field to update');
 
 export const publicListQuerySchema = z.object({
   ...pagination,
@@ -43,5 +55,6 @@ export const cmsListQuerySchema = z.object({
 });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 export type PublicListQuery = z.infer<typeof publicListQuerySchema>;
 export type CmsListQuery = z.infer<typeof cmsListQuerySchema>;

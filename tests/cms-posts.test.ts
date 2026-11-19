@@ -81,6 +81,59 @@ describe('create a post', () => {
   });
 });
 
+describe('edit a post', () => {
+  it('changes only the fields that were sent', async () => {
+    const post = await createPost({ title: 'Old title', hashtags: ['node'] });
+
+    const res = await request(app)
+      .patch(`${CMS}/${post.id}`)
+      .set(AUTH)
+      .send({ title: 'New title', hashtags: ['#Express', 'express'] })
+      .expect(200);
+
+    expect(res.body.data).toMatchObject({
+      id: post.id,
+      title: 'New title',
+      body: post.body,
+      hashtags: ['express'],
+      status: 'draft',
+      author: 'Brian Fox',
+    });
+  });
+
+  it('keeps a published post published with the same publish date', async () => {
+    const post = await createPost({ status: 'published' });
+
+    const res = await request(app)
+      .patch(`${CMS}/${post.id}`)
+      .set(AUTH)
+      .send({ body: 'Fixed a typo' })
+      .expect(200);
+
+    expect(res.body.data.status).toBe('published');
+    expect(res.body.data.publishedAt).toBe(post.publishedAt);
+    const blog = await request(app).get(`/api/v1/posts/${post.id}`).expect(200);
+    expect(blog.body.data.body).toBe('Fixed a typo');
+  });
+
+  it.each([
+    ['an empty object', {}],
+    ['status', { status: 'published' }],
+    ['author', { author: 'Someone Else' }],
+    ['an empty title', { title: ' ' }],
+    ['hashtags as a string', { hashtags: 'node' }],
+  ])('rejects %s with 400', async (_name, payload) => {
+    const post = await createPost();
+    const res = await request(app).patch(`${CMS}/${post.id}`).set(AUTH).send(payload).expect(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('answers 404 for an unknown id and 401 without a token', async () => {
+    await request(app).patch(`${CMS}/${UNKNOWN_ID}`).set(AUTH).send({ title: 'x' }).expect(404);
+    await request(app).patch(`${CMS}/${UNKNOWN_ID}`).send({ title: 'x' }).expect(401);
+  });
+});
+
 describe('publish a post', () => {
   it('turns a draft into a published post in the first response', async () => {
     const draft = await createPost();

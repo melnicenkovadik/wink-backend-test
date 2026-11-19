@@ -6,6 +6,7 @@ import {
   createPostSchema,
   postParamsSchema,
   publicListQuerySchema,
+  updatePostSchema,
 } from './post.schemas.js';
 import {
   createPost,
@@ -15,6 +16,7 @@ import {
   listPosts,
   listPublishedPosts,
   publishPost,
+  updatePost,
 } from './post.service.js';
 
 const postListResponse = (
@@ -57,6 +59,12 @@ cmsPostsRouter.get('/', async (req, res) => {
 cmsPostsRouter.get('/:id', async (req, res) => {
   const { id } = postParamsSchema.parse(req.params);
   res.json({ data: toPostResponse(await getPost(id)) });
+});
+
+cmsPostsRouter.patch('/:id', async (req, res) => {
+  const { id } = postParamsSchema.parse(req.params);
+  const post = await updatePost(id, updatePostSchema.parse(req.body));
+  res.json({ data: toPostResponse(post) });
 });
 
 cmsPostsRouter.post('/:id/publish', async (req, res) => {
